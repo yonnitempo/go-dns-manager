@@ -1,6 +1,6 @@
 COMMIT_COUNTER=$(shell git rev-list --all --count)
 
-NAME=arm-go-alpine
+NAME=go-dns-manager
 
 
 all:
