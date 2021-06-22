@@ -1,0 +1,1 @@
+This is a small HTTP service which listens on a port and is capable of updating DNS A record on Google Cloud.
