@@ -3,4 +3,8 @@ FROM arm32v6/alpine:3.12
 
 RUN apk add --no-cache musl-dev go 
 run go get fmt net/http log crypto/sha1 encoding/json io/ioutil
-run mkdir /repo
+workdir /repo/
+copy *.go /repo/
+run go build -o /bin/server
+
+# ENTRYPOINT ["/bin/server"]
