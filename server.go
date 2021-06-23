@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 )
 
 type Server struct {
@@ -37,7 +38,13 @@ func (server *Server) load_configuration(path string) {
 	}
 }
 
-func (server *Server) manage_secret(writer http.ResponseWriter, secret_values []string, domain_values []string) {
+func (server *Server) manage_update_dns_a_record(writer http.ResponseWriter, request *http.Request, domain string) {
+	ip_address := strings.Split(request.RemoteAddr, ":")[0]
+	log.Printf("Updating A record for %s with IP %s\n", domain, ip_address)
+	fmt.Fprintf(writer, "Updating A record…\n")
+}
+
+func (server *Server) manage_secret(writer http.ResponseWriter, secret_values []string, domain_values []string) (string, bool) {
 	if len(secret_values) == 1 && len(domain_values) == 1 {
 		log.Println("Secret is", secret_values[0])
 		log.Println("Expected secret for domain is", server.config[domain_values[0]].Secret)
@@ -46,14 +53,16 @@ func (server *Server) manage_secret(writer http.ResponseWriter, secret_values []
 		if sha1_string == server.config[domain_values[0]].Secret {
 			log.Printf("Secrets match for domain: %s.\n", domain_values[0])
 			fmt.Fprintf(writer, "Authenticated\n")
+			return domain_values[0], true
 		} else {
 			log.Printf("Secrets do not match for domain: %s.\n", domain_values[0])
 			http.Error(writer, "Secret does not match!", http.StatusForbidden)
+			return "", false
 		}
 	} else {
 		log.Println("Secret not properly set!")
 		http.Error(writer, "Secret not properly set!!", http.StatusForbidden)
-		return
+		return "", false
 	}
 }
 
@@ -62,9 +71,12 @@ func (server *Server) dns_updater(writer http.ResponseWriter, request *http.Requ
 	if secret_values, ok := query_keys["secret"]; ok {
 		if domain_values, ok := query_keys["domain"]; ok {
 			log.Printf("There is a secret and domain on query: %s - %s", secret_values, domain_values)
-			server.manage_secret(writer, secret_values, domain_values)
+			if domain, ok := server.manage_secret(writer, secret_values, domain_values); ok {
+				server.manage_update_dns_a_record(writer, request, domain)
+			}
 		}
 	}
+	fmt.Fprintf(writer, "Request completed!\n")
 }
 
 func main() {
@@ -72,5 +84,6 @@ func main() {
 	server.load_configuration("config.json")
 	http.HandleFunc("/dns_updater", server.dns_updater)
 
+	log.Println("Listening for incomming connections…")
 	http.ListenAndServe(":8090", nil)
 }
