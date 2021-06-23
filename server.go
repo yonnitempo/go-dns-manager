@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type Server struct {
@@ -40,8 +42,35 @@ func (server *Server) load_configuration(path string) {
 
 func (server *Server) manage_update_dns_a_record(writer http.ResponseWriter, request *http.Request, domain string) {
 	ip_address := strings.Split(request.RemoteAddr, ":")[0]
-	log.Printf("Updating A record for %s with IP %s\n", domain, ip_address)
-	fmt.Fprintf(writer, "Updating A record…\n")
+	if server.is_dns_record_out_of_date(ip_address, domain) {
+		log.Printf("Updating A record for %s with IP %s\n", domain, ip_address)
+		fmt.Fprintf(writer, "Updating A record…\n")
+		server.update_a_record_for_domain(domain, ip_address)
+	} else {
+		log.Printf("Already up to date A record for %s with IP %s.\n", domain, ip_address)
+		fmt.Fprintf(writer, "A record up to date.\n")
+	}
+}
+
+func (server *Server) update_a_record_for_domain(domain string, ipaddr string) {
+	log.Println("Updating DNS Record on Google Cloud…")
+	time.Sleep(3 * time.Second)
+	log.Println("Updated DNS Record on Google Cloud.")
+}
+
+func (server *Server) is_dns_record_out_of_date(ip_address string, domain string) bool {
+	ips, err := net.LookupIP(domain)
+	if err != nil {
+		log.Printf("Could not get IPs for domain %s: %v\n", err, domain)
+	}
+	log.Printf("IPs for %s: %s.", domain, ips)
+	if len(ips) == 1 {
+		if ips[0].String() == ip_address {
+			return false
+		}
+		// All this is assuming there is only one IPv4.
+	}
+	return true
 }
 
 func (server *Server) manage_secret(writer http.ResponseWriter, secret_values []string, domain_values []string) (string, bool) {
