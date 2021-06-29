@@ -104,8 +104,17 @@ func (server *Server) load_configuration(path string) {
 	}
 }
 
+func (server *Server) GetRemoteIPAddress(request *http.Request) string {
+	fwdAddress := request.Header.Get("X-Forwarded-For")
+	if fwdAddress != "" {
+		log.Printf("Using forwarded address: %s.", fwdAddress)
+		return fwdAddress
+	}
+	return strings.Split(request.RemoteAddr, ":")[0]
+}
+
 func (server *Server) manage_update_dns_a_record(writer http.ResponseWriter, request *http.Request, domain string) {
-	ip_address := strings.Split(request.RemoteAddr, ":")[0]
+	ip_address := server.GetRemoteIPAddress(request)
 	if server.is_dns_record_out_of_date(ip_address, domain) {
 		log.Printf("Updating A record for %s with IP %s\n", domain, ip_address)
 		fmt.Fprintf(writer, "Updating A record…\n")
